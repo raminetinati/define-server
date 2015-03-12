@@ -7,10 +7,6 @@ var wpimg = require('wikipedia-image');
 //var config = require('./config');
 var Twit = require('twit')
 var fs = require('fs');
-var natural = require('natural');
-var stopWords = require('stopwords').english;
-var viva = require('vivagraphjs');
-
 
 //set the http
 app.listen(3002);
@@ -98,12 +94,13 @@ function loadDatabaseData(socket){
     if (err) return console.error(err);
      //console.log(responses);
      try{
-          socket.emit("historic_data", responses.slice((responses.length-1000), (responses.length-1)));
+     socket.emit("historic_data", responses.slice((responses.length-1000), (responses.length-1)));
         }catch(e){
-          socket.emit("historic_data", responses);
-      }
-        //now for some graph processing
-        createHistoricGraph(responses.slice((responses.length-50), (responses.length-1)));
+
+     socket.emit("historic_data", responses);
+
+
+        }
     })
 
 }
@@ -125,7 +122,6 @@ function updateDatabaseFromWebsite(data){
                 //console.dir(thor);
                 });
                  io.emit("realtime_data", doc)
-                 updateGraphFromWebsite(data);
      
 
 };
@@ -194,8 +190,6 @@ function updateDatabaseWithTweets(since_id_local,max_id,data_rec){
 			//emit to real-time
 			if(data_rec.statuses.length>0){
 				io.emit("realtime_data", data_rec.statuses)
-        //update graph as well
-        updateGraphFromTwitter(data_rec.statuses);
 		}
       }
 
@@ -216,216 +210,8 @@ function updateDatabaseWithTweets(since_id_local,max_id,data_rec){
 };
 
 
-//need to do some processing for the graph edges.
-var edges = [];
-function createHistoricGraph(data){
-
-  var graph = viva.Graph.graph();
-
-   tokenizer = new natural.TreebankWordTokenizer();
-
-    var msgs = [];
-    for(i in data){
-      var msg = data[i].message;
-     // console.log(msg);
-      //remove stop word.
-      //console.log("BEFORE:"+msg);
-
-      for(sw in stopWords){
-        msg = msg.replace(sw, "");
-        msg = replaceUnknownTerms(msg);
-      }
-
-      var tokens = tokenizer.tokenize(msg);
-              //console.log("after:"+msg);
-      msgs.push(tokens);
-    }
-      console.log("removed stopwords");
-
-    var matchedWords = {};
-    //got a list of messages, now match some edges, after removing stop wor
-    for(var i=0; i<msgs.length; i++){
-
-      for(var j=0; j<msgs.length; j++){
-
-        if(i != j ){
-
-            for(token_i in msgs[i]){
-
-              for(token_j in msgs[j]){
 
 
-                if((msgs[i][token_i].length>4) && (msgs[j][token_j].length>4)){
-                  if(msgs[i][token_i] == msgs[j][token_j]){
-                    
-                    if(msgs[i][token_i] in matchedWords){
-                      matchedWords[msgs[i][token_i]] = matchedWords[msgs[i][token_i]] + 1;
-                    }else{
-                      matchedWords[msgs[i][token_i]] = 1;
-
-                    }
-
-                    // var edge = {source: msgs[i][token_i], target: msgs[j][token_j]}
-                    // edges.push(edge);
-
-                    //console.log("match: "+msgs[i][token_i]);
-                  
-                  }
-                }
-              }
-          
-            }
-
-        }
-
-      }
-
-    }
-
-
-//FOUND OUT SOCKET CANT HANDLE COMPLEX DATA...
-    //console.log("Matched Words :"+Object.keys(matchedWords).length);
-
-  //   //now we need to construct a graph
-  //   //the number of words 
-  //   for(word in matchedWords){
-     
-  //     //make the nodes
-  //     var cnt = 0;
-  //     while(cnt <= matchedWords[word]){
-  //       graph.addNode(word.toString()+"_"+cnt.toString(), word.toString());
-  //       ++cnt;
-  //     }
-  //     //construct the edges
-  //     var cnt = 0;
-  //     while(cnt < matchedWords[word]){
-  //       graph.addLink(word.toString()+"_"+cnt.toString(),word.toString()+"_"+(cnt+1).toString());
-  //       ++cnt;
-  //     }
-  //   }
-
-
-  // console.log("Nodes Added: "+graph.getNodesCount());
-  // console.log("Links Added: "+graph.getLinksCount());
-
-
-  io.emit("edge_data", matchedWords);
-
-}
-
-
-//need to do some processing for the graph edges.
-function updateGraphFromTwitter(data){
-
-  console.log("Updating Graph with Twitter Data");
-  var graph = viva.Graph.graph();
-
-   tokenizer = new natural.TreebankWordTokenizer();
-
-    var msgs = [];
-    for(i in data){
-      var msg = data[i].text;
-     // console.log(msg);
-      //remove stop word.
-      //console.log("BEFORE:"+msg);
-
-      for(sw in stopWords){
-        msg = msg.replace(sw, "");
-        msg = replaceUnknownTerms(msg);
-      }
-
-      var tokens = tokenizer.tokenize(msg);
-              //console.log("after:"+msg);
-      msgs.push(tokens);
-    }
-      console.log("removed stopwords");
-
-    var matchedWords = {};
-    //got a list of messages, now match some edges, after removing stop wor
-    for(var i=0; i<msgs.length; i++){
-
-      for(var j=0; j<msgs.length; j++){
-
-        if(i != j ){
-
-            for(token_i in msgs[i]){
-
-              for(token_j in msgs[j]){
-
-
-                if((msgs[i][token_i].length>4) && (msgs[j][token_j].length>4)){
-                  if(msgs[i][token_i] == msgs[j][token_j]){
-                    
-                    if(msgs[i][token_i] in matchedWords){
-                      matchedWords[msgs[i][token_i]] = matchedWords[msgs[i][token_i]] + 1;
-                    }else{
-                      matchedWords[msgs[i][token_i]] = 1;
-
-                    }
-
-                    // var edge = {source: msgs[i][token_i], target: msgs[j][token_j]}
-                    // edges.push(edge);
-
-                    //console.log("match: "+msgs[i][token_i]);
-                  
-                  }
-                }
-              }
-          
-            }
-
-        }
-
-      }
-
-    }
-  io.emit("realtime_edge_data", matchedWords);
-}
-
-
-
-//need to do some processing for the graph edges.
-function updateGraphFromWebsite(data){
-
-  console.log("Updating Graph with Website Data");
-  var graph = viva.Graph.graph();
-    var matchedWords = {};
-
-   tokenizer = new natural.TreebankWordTokenizer();
-
-      var msg = data.define_data;
-     // console.log(msg);
-      //remove stop word.
-      //console.log("BEFORE:"+msg);
-
-      for(sw in stopWords){
-        msg = msg.replace(sw, "");
-        msg = replaceUnknownTerms(msg);
-      }
-
-      var tokens = tokenizer.tokenize(msg);
-
-            for(token_i in tokens){
-                    
-                    if(tokens[token_i] in matchedWords){
-
-                      matchedWords[tokens[token_i]] = matchedWordstokens[tokens[token_i]] + 1;
-                    }else{
-                      matchedWords[tokens[token_i]] = 1;
-
-                    }
-                  }
-
-  io.emit("realtime_edge_data", matchedWords);
-}
-
-function replaceUnknownTerms(msg){
-
-  msg = msg.replace("http","").replace("#","").replace(":","").replace("//","");
-  return msg;
-
-
-}
 
 var interval = setInterval(function(){calltwitter(since_id)}, 10000);
 
